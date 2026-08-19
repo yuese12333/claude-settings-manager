@@ -3,6 +3,10 @@
   import { loadProfiles, saveProfiles } from "$lib/api";
   import type { Profile } from "$lib/types";
 
+  const DEFAULT_ID = "default";
+  const DEFAULT_NAME = "默认配置组";
+  const PREVIEW = 3;
+
   let {
     currentUrl,
     currentKey,
@@ -21,8 +25,9 @@
   let name = $state("");
   let baseUrl = $state("");
   let apiKey = $state("");
+  let expanded = $state(false);
 
-  const shown = $derived(
+  const filtered = $derived(
     profiles.filter((p) => {
       const s = q.trim().toLowerCase();
       if (!s) return true;
@@ -30,12 +35,18 @@
     }),
   );
 
+  const visible = $derived(expanded ? filtered : filtered.slice(0, PREVIEW));
+
   function host(url: string) {
     try {
       return new URL(url).host || url;
     } catch {
       return url || "—";
     }
+  }
+
+  function isActive(p: Profile) {
+    return p.baseUrl === currentUrl && p.apiKey === currentKey;
   }
 
   async function persist(next: Profile[]) {
@@ -47,8 +58,8 @@
   function startAdd() {
     editing = null;
     name = "";
-    baseUrl = currentUrl;
-    apiKey = currentKey;
+    baseUrl = "";
+    apiKey = "";
     open = true;
   }
 
@@ -81,6 +92,10 @@
   }
 
   async function remove(p: Profile) {
+    if (profiles.length <= 1) {
+      err = "至少保留一个配置组";
+      return;
+    }
     if (!confirm(`删除配置组「${p.name}」？`)) return;
     try {
       await persist(profiles.filter((x) => x.id !== p.id));
@@ -89,9 +104,27 @@
     }
   }
 
-  loadProfiles()
-    .then((list) => (profiles = list))
-    .catch((e) => (err = String(e)));
+  async function boot() {
+    try {
+      const list = await loadProfiles();
+      if (list.length === 0) {
+        await persist([
+          {
+            id: DEFAULT_ID,
+            name: DEFAULT_NAME,
+            baseUrl: currentUrl,
+            apiKey: currentKey,
+          },
+        ]);
+      } else {
+        profiles = list;
+      }
+    } catch (e) {
+      err = String(e);
+    }
+  }
+
+  boot();
 </script>
 
 <div class="box">
@@ -101,22 +134,27 @@
   </div>
   <input class="search" type="search" placeholder="查找名称或 Base URL" bind:value={q} />
   {#if err}<p class="err">{err}</p>{/if}
-  {#if shown.length === 0}
-    <p class="empty">{profiles.length ? "没有匹配的配置组" : "还没有配置组"}</p>
+  {#if filtered.length === 0}
+    <p class="empty">没有匹配的配置组</p>
   {:else}
     <ul>
-      {#each shown as p (p.id)}
-        <li>
+      {#each visible as p (p.id)}
+        <li class:active={isActive(p)}>
           <div class="meta">
-            <strong>{p.name}</strong>
+            <strong>{p.name}{#if isActive(p)} <em>使用中</em>{/if}</strong>
             <span>{host(p.baseUrl)}</span>
           </div>
-          <button type="button" class="use" onclick={() => onapply(p)}>套用</button>
+          <button type="button" class="use" disabled={isActive(p)} onclick={() => onapply(p)}>套用</button>
           <button type="button" onclick={() => startEdit(p)}>修改</button>
-          <button type="button" class="del" onclick={() => remove(p)}>删除</button>
+          <button type="button" class="del" disabled={profiles.length <= 1} onclick={() => remove(p)}>删除</button>
         </li>
       {/each}
     </ul>
+    {#if filtered.length > PREVIEW}
+      <button type="button" class="more" onclick={() => (expanded = !expanded)}>
+        {expanded ? "收起" : "显示全部"}
+      </button>
+    {/if}
   {/if}
 </div>
 
@@ -145,7 +183,7 @@
 
 <style>
   .box {
-    margin: 0 0 32px;
+    margin: 36px 0 0;
   }
   .head {
     display: flex;
@@ -161,7 +199,8 @@
   }
   .head button,
   .acts button,
-  li button {
+  li button,
+  .more {
     border: 0;
     background: transparent;
     font: inherit;
@@ -195,6 +234,9 @@
     padding: 10px 0;
     border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
   }
+  li.active strong {
+    color: var(--pine);
+  }
   .meta {
     min-width: 0;
     display: flex;
@@ -203,6 +245,13 @@
   }
   .meta strong {
     font-weight: 600;
+  }
+  .meta em {
+    font-style: normal;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--amber);
+    margin-left: 6px;
   }
   .meta span {
     color: var(--muted);
@@ -215,8 +264,18 @@
   .use {
     border-bottom: 2px solid var(--amber);
   }
-  .del:hover {
+  .use:disabled,
+  .del:disabled {
+    opacity: 0.35;
+    cursor: default;
+    border-bottom-color: transparent;
+  }
+  .del:hover:not(:disabled) {
     color: #9b2c1a;
+  }
+  .more {
+    margin-top: 8px;
+    border-bottom: 2px solid var(--amber);
   }
   .empty,
   .err {

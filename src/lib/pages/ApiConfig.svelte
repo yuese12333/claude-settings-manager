@@ -40,13 +40,7 @@
 
 <section>
   <h2>API 配置</h2>
-  <p class="lead">配置组只存在本应用里。套用后记得点保存，才会写入 settings.json。</p>
-
-  <Profiles
-    currentUrl={get("ANTHROPIC_BASE_URL")}
-    currentKey={get("ANTHROPIC_AUTH_TOKEN")}
-    onapply={applyProfile}
-  />
+  <p class="lead">上方改当前值；下方配置组可一键套用。套用后记得保存。</p>
 
   <label for="base-url">Base URL</label>
   <input
@@ -104,6 +98,12 @@
     />
     <span>分钟</span>
   </div>
+
+  <Profiles
+    currentUrl={get("ANTHROPIC_BASE_URL")}
+    currentKey={get("ANTHROPIC_AUTH_TOKEN")}
+    onapply={applyProfile}
+  />
 </section>
 
 <style>
