@@ -1,0 +1,40 @@
+:root {
+  --paper: #e7ece6;
+  --ink: #1c2a24;
+  --muted: #5d6b64;
+  --pine: #1e3a34;
+  --amber: #d0892a;
+  --display: "Sitka Heading", "Sitka Text", "Cambria", serif;
+  --sans: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --mono: "Cascadia Mono", "Consolas", monospace;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 11px,
+      color-mix(in srgb, var(--pine) 4%, transparent) 11px,
+      color-mix(in srgb, var(--pine) 4%, transparent) 12px
+    ),
+    linear-gradient(165deg, #eef3ec 0%, #d7e0d6 55%, #cfd8ce 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
