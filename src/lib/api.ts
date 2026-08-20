@@ -13,16 +13,27 @@ export function loadSettingsRaw(path: string) {
   return invoke<string>("load_settings_raw", { path });
 }
 
+export type ValidateOut = {
+  ok: boolean;
+  message: string;
+  line: number | null;
+  column: number | null;
+};
+
 export function validateSettingsJson(content: string) {
-  return invoke<void>("validate_settings_json", { content });
+  return invoke<ValidateOut>("validate_settings_json", { content });
 }
 
 export function saveSettings(path: string, settings: Settings) {
   return invoke<void>("save_settings", { path, settings });
 }
 
+export type SaveRawOut = {
+  settings: Settings | null;
+};
+
 export function saveSettingsRaw(path: string, content: string) {
-  return invoke<Settings>("save_settings_raw", { path, content });
+  return invoke<SaveRawOut>("save_settings_raw", { path, content });
 }
 
 export function pickSettingsFile() {

@@ -13,7 +13,7 @@
     ondirty,
   }: {
     path: string;
-    onsaved: (settings: Settings) => void;
+    onsaved: (settings: Settings | null) => void;
     ondirty: (dirty: boolean) => void;
   } = $props();
 
@@ -21,28 +21,59 @@
   let snapshot = $state("");
   let validMsg = $state("正在校验…");
   let ok = $state(false);
+  let errLine = $state<number | null>(null);
   let busy = $state(false);
   let notice = $state("");
   let error = $state("");
   let preEl = $state<HTMLPreElement | null>(null);
   let taEl = $state<HTMLTextAreaElement | null>(null);
+  let gutterEl = $state<HTMLDivElement | null>(null);
+
+  let findOpen = $state(false);
+  let findQ = $state("");
+  let replaceQ = $state("");
+  let findHint = $state("");
 
   const dirty = $derived(text !== snapshot);
-  // trailing newline keeps overlay height in sync when file ends with \n
+  const lineCount = $derived(Math.max(1, text.split("\n").length));
+  const lineNos = $derived(Array.from({ length: lineCount }, (_, i) => i + 1));
   const html = $derived(highlightJson(text) + "\n");
 
   $effect(() => {
     ondirty(dirty);
   });
 
+  function syncScroll() {
+    if (!preEl || !taEl) return;
+    preEl.scrollTop = taEl.scrollTop;
+    preEl.scrollLeft = taEl.scrollLeft;
+    if (gutterEl) gutterEl.scrollTop = taEl.scrollTop;
+  }
+
+  function goToLine(line: number) {
+    if (!taEl || line < 1) return;
+    const parts = text.split("\n");
+    let pos = 0;
+    const target = Math.min(line, parts.length);
+    for (let i = 0; i < target - 1; i++) pos += parts[i].length + 1;
+    const end = pos + (parts[target - 1]?.length ?? 0);
+    taEl.focus();
+    taEl.setSelectionRange(pos, end);
+    const lh = parseFloat(getComputedStyle(taEl).lineHeight) || 19.5;
+    taEl.scrollTop = Math.max(0, (target - 1) * lh - taEl.clientHeight / 3);
+    syncScroll();
+  }
+
   async function check(content: string) {
     try {
-      await validateSettingsJson(content);
-      ok = true;
-      validMsg = "结构校验通过";
+      const v = await validateSettingsJson(content);
+      ok = v.ok;
+      validMsg = v.message;
+      errLine = v.ok ? null : (v.line ?? null);
     } catch (e) {
       ok = false;
       validMsg = String(e);
+      errLine = null;
     }
   }
 
@@ -53,28 +84,103 @@
   }
 
   async function save() {
-    if (!ok || !dirty) return;
+    if (!dirty) return;
     error = "";
     busy = true;
     try {
-      const settings = await saveSettingsRaw(path, text);
+      const out = await saveSettingsRaw(path, text);
       snapshot = text.endsWith("\n") ? text : `${text}\n`;
       text = snapshot;
-      notice = "已写入磁盘，原文件已备份为 .bak";
-      onsaved(settings);
+      notice = ok
+        ? "已写入磁盘，原文件已备份为 .bak"
+        : "已写入磁盘（当前内容校验未通过，Claude Code 可能无法正常使用）";
+      onsaved(out.settings);
     } catch (e) {
       error = String(e);
-      ok = false;
-      validMsg = String(e);
     } finally {
       busy = false;
     }
   }
 
-  function syncScroll() {
-    if (!preEl || !taEl) return;
-    preEl.scrollTop = taEl.scrollTop;
-    preEl.scrollLeft = taEl.scrollLeft;
+  function findFrom(start: number, backward = false): boolean {
+    const q = findQ;
+    if (!q || !taEl) {
+      findHint = q ? "" : "请输入查找内容";
+      return false;
+    }
+    const hay = text;
+    let idx = -1;
+    if (backward) {
+      idx = hay.lastIndexOf(q, Math.max(0, start - 1));
+    } else {
+      idx = hay.indexOf(q, start);
+      if (idx < 0 && start > 0) idx = hay.indexOf(q, 0);
+    }
+    if (idx < 0) {
+      findHint = "未找到";
+      return false;
+    }
+    taEl.focus();
+    taEl.setSelectionRange(idx, idx + q.length);
+    const before = hay.slice(0, idx);
+    const line = before.split("\n").length;
+    goToLine(line);
+    taEl.setSelectionRange(idx, idx + q.length);
+    findHint = `第 ${line} 行`;
+    return true;
+  }
+
+  function findNext() {
+    const start = taEl ? taEl.selectionEnd : 0;
+    findFrom(start, false);
+  }
+
+  function findPrev() {
+    const start = taEl ? taEl.selectionStart : 0;
+    findFrom(start, true);
+  }
+
+  function replaceOne() {
+    if (!taEl || !findQ) return;
+    const { selectionStart: a, selectionEnd: b } = taEl;
+    if (text.slice(a, b) === findQ) {
+      text = text.slice(0, a) + replaceQ + text.slice(b);
+      notice = "";
+      void check(text);
+      queueMicrotask(() => {
+        if (!taEl) return;
+        const pos = a + replaceQ.length;
+        taEl.setSelectionRange(pos, pos);
+        findFrom(pos, false);
+      });
+    } else {
+      findNext();
+    }
+  }
+
+  function replaceAll() {
+    if (!findQ) return;
+    const n = text.split(findQ).length - 1;
+    if (n <= 0) {
+      findHint = "未找到";
+      return;
+    }
+    text = text.split(findQ).join(replaceQ);
+    findHint = `已替换 ${n} 处`;
+    notice = "";
+    void check(text);
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      e.preventDefault();
+      findOpen = true;
+      queueMicrotask(() => document.getElementById("find-q")?.focus());
+    }
+    if (e.key === "Escape" && findOpen) {
+      findOpen = false;
+      taEl?.focus();
+    }
   }
 
   $effect(() => {
@@ -97,9 +203,30 @@
   });
 </script>
 
+<svelte:window onkeydown={onKey} />
+
 <section>
   <h2>源文件</h2>
-  <p class="lead">以 JSON 原文编辑 settings.json。通过结构校验后方可保存。</p>
+  <p class="lead">编辑 Claude Code 的 settings.json。字段问题仅作提示，不阻止保存；格式有误时保存后可能无法正常使用。</p>
+
+  <div class="toolbar">
+    <button type="button" onclick={() => (findOpen = !findOpen)}>查找/替换</button>
+    {#if errLine}
+      <button type="button" class="jump" onclick={() => goToLine(errLine!)}>定位到第 {errLine} 行</button>
+    {/if}
+  </div>
+
+  {#if findOpen}
+    <div class="find">
+      <input id="find-q" placeholder="查找" bind:value={findQ} onkeydown={(e) => e.key === "Enter" && (e.shiftKey ? findPrev() : findNext())} />
+      <input placeholder="替换为" bind:value={replaceQ} onkeydown={(e) => e.key === "Enter" && replaceOne()} />
+      <button type="button" onclick={findPrev}>上一个</button>
+      <button type="button" onclick={findNext}>下一个</button>
+      <button type="button" onclick={replaceOne}>替换</button>
+      <button type="button" onclick={replaceAll}>全部替换</button>
+      {#if findHint}<span class="hint">{findHint}</span>{/if}
+    </div>
+  {/if}
 
   <div class="status" class:bad={!ok} class:good={ok}>
     {validMsg}
@@ -108,6 +235,11 @@
   {#if error}<p class="err">{error}</p>{/if}
 
   <div class="editor" class:invalid={!ok}>
+    <div class="gutter" bind:this={gutterEl} aria-hidden="true">
+      {#each lineNos as n}
+        <span class:hot={errLine === n}>{n}</span>
+      {/each}
+    </div>
     <div class="rail" aria-hidden="true"></div>
     <pre class="hl" bind:this={preEl} aria-hidden="true">{@html html}</pre>
     <textarea
@@ -127,9 +259,9 @@
   </div>
 
   <footer>
-    {#if notice}<span class="ok">{notice}</span>{/if}
+    {#if notice}<span class:ok={ok} class:warn={!ok}>{notice}</span>{/if}
     <button type="button" disabled={!dirty || busy} onclick={reset}>还原</button>
-    <button class="save" type="button" disabled={!dirty || !ok || busy} onclick={save}>保存更改</button>
+    <button class="save" type="button" disabled={!dirty || busy} onclick={save}>保存更改</button>
   </footer>
 </section>
 
@@ -148,9 +280,50 @@
     letter-spacing: -0.03em;
   }
   .lead {
-    margin: 6px 0 16px;
+    margin: 6px 0 12px;
     color: var(--muted);
     font-size: 14px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .toolbar button,
+  .find button {
+    border: 0;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+    padding: 2px 0;
+    color: var(--ink);
+    border-bottom: 2px solid var(--amber);
+  }
+  .jump {
+    color: #9b2c1a;
+    border-bottom-color: color-mix(in srgb, #9b2c1a 50%, transparent);
+  }
+  .find {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .find input {
+    width: 160px;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--ink) 28%, transparent);
+    background: transparent;
+    padding: 4px 0;
+    font: inherit;
+    outline: none;
+  }
+  .hint {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
   }
   .status {
     font-size: 13px;
@@ -169,10 +342,10 @@
     font-size: 13px;
   }
 
-  /* ink-ledger editor: paper field + margin rail, not a stock IDE theme */
   .editor {
     --ed-pad-y: 12px;
     --ed-pad-x: 14px;
+    --ed-gutter: 44px;
     --ed-rail: 10px;
     position: relative;
     flex: 1;
@@ -181,9 +354,11 @@
     background:
       linear-gradient(
         90deg,
-        color-mix(in srgb, var(--pine) 7%, transparent) 0,
-        color-mix(in srgb, var(--pine) 7%, transparent) var(--ed-rail),
-        transparent var(--ed-rail)
+        color-mix(in srgb, var(--pine) 10%, transparent) 0,
+        color-mix(in srgb, var(--pine) 10%, transparent) var(--ed-gutter),
+        color-mix(in srgb, var(--pine) 5%, transparent) var(--ed-gutter),
+        color-mix(in srgb, var(--pine) 5%, transparent) calc(var(--ed-gutter) + var(--ed-rail)),
+        transparent calc(var(--ed-gutter) + var(--ed-rail))
       ),
       color-mix(in srgb, #f4f7f2 88%, white);
     overflow: hidden;
@@ -191,11 +366,36 @@
   .editor.invalid {
     border-color: color-mix(in srgb, #9b2c1a 45%, transparent);
   }
+  .gutter {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--ed-gutter);
+    padding: var(--ed-pad-y) 8px var(--ed-pad-y) 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--ink) 38%, transparent);
+    user-select: none;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .gutter span {
+    display: block;
+  }
+  .gutter span.hot {
+    color: #9b2c1a;
+    font-weight: 700;
+  }
   .rail {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: calc(var(--ed-rail) - 1px);
+    left: calc(var(--ed-gutter) + var(--ed-rail) - 1px);
     width: 1px;
     background: color-mix(in srgb, var(--amber) 55%, transparent);
     pointer-events: none;
@@ -207,7 +407,8 @@
     position: absolute;
     inset: 0;
     box-sizing: border-box;
-    padding: var(--ed-pad-y) var(--ed-pad-x) var(--ed-pad-y) calc(var(--ed-pad-x) + var(--ed-rail));
+    padding: var(--ed-pad-y) var(--ed-pad-x) var(--ed-pad-y)
+      calc(var(--ed-pad-x) + var(--ed-gutter) + var(--ed-rail));
     border: 0;
     font-family: var(--mono);
     font-size: 13px;
@@ -235,7 +436,6 @@
     color: transparent;
   }
 
-  /* semantic palette: url / secret / model / plugin / … */
   .hl :global(.t-k-url),
   .hl :global(.t-v-url) {
     color: #0f5c8a;
@@ -364,6 +564,11 @@
   .ok {
     margin-right: auto;
     color: var(--pine);
+    font-size: 13px;
+  }
+  .warn {
+    margin-right: auto;
+    color: #9b2c1a;
     font-size: 13px;
   }
 </style>

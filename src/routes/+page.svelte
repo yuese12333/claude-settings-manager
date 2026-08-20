@@ -122,9 +122,11 @@
     }
   }
 
-  function onJsonSaved(s: Settings) {
-    settings = s;
-    snapshot = JSON.stringify(s);
+  function onJsonSaved(s: Settings | null) {
+    if (s) {
+      settings = s;
+      snapshot = JSON.stringify(s);
+    }
     jsonDirty = false;
     notice = "已写入磁盘，原文件已备份为 .bak";
   }

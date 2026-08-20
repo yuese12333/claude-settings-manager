@@ -26,6 +26,8 @@
   let baseUrl = $state("");
   let apiKey = $state("");
   let expanded = $state(false);
+  let dragId = $state<string | null>(null);
+  let fileEl = $state<HTMLInputElement | null>(null);
 
   const filtered = $derived(
     profiles.filter((p) => {
@@ -36,6 +38,7 @@
   );
 
   const visible = $derived(expanded ? filtered : filtered.slice(0, PREVIEW));
+  const canDrag = $derived(!q.trim());
 
   function host(url: string) {
     try {
@@ -104,6 +107,90 @@
     }
   }
 
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(profiles, null, 2) + "\n"], {
+      type: "application/json",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "claude-connection-presets.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function parseImport(raw: string): Profile[] {
+    const data = JSON.parse(raw) as unknown;
+    if (!Array.isArray(data)) throw new Error("导入文件须为预设数组");
+    return data.map((row, i) => {
+      if (!row || typeof row !== "object") throw new Error(`第 ${i + 1} 项不是对象`);
+      const o = row as Record<string, unknown>;
+      const name = String(o.name ?? "").trim();
+      if (!name) throw new Error(`第 ${i + 1} 项缺少 name`);
+      return {
+        id: String(o.id ?? crypto.randomUUID()),
+        name,
+        baseUrl: String(o.baseUrl ?? ""),
+        apiKey: String(o.apiKey ?? ""),
+      };
+    });
+  }
+
+  async function onImportFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    try {
+      const list = parseImport(await file.text());
+      if (list.length === 0) {
+        err = "导入文件为空";
+        return;
+      }
+      const mode = confirm(
+        `将导入 ${list.length} 条预设。\n确定 = 合并（同名覆盖）\n取消 = 全部替换`,
+      );
+      let next: Profile[];
+      if (mode) {
+        const map = new Map(profiles.map((p) => [p.name.toLowerCase(), p]));
+        for (const p of list) {
+          const old = map.get(p.name.toLowerCase());
+          map.set(p.name.toLowerCase(), old ? { ...p, id: old.id } : p);
+        }
+        next = [...map.values()];
+      } else {
+        next = list;
+      }
+      await persist(next);
+      expanded = true;
+    } catch (e) {
+      err = String(e);
+    }
+  }
+
+  function onDragStart(id: string) {
+    if (!canDrag) return;
+    dragId = id;
+  }
+
+  async function onDrop(targetId: string) {
+    if (!canDrag || !dragId || dragId === targetId) {
+      dragId = null;
+      return;
+    }
+    const from = profiles.findIndex((p) => p.id === dragId);
+    const to = profiles.findIndex((p) => p.id === targetId);
+    dragId = null;
+    if (from < 0 || to < 0) return;
+    const next = [...profiles];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    try {
+      await persist(next);
+    } catch (e) {
+      err = String(e);
+    }
+  }
+
   async function boot() {
     try {
       const list = await loadProfiles();
@@ -130,16 +217,40 @@
 <div class="box">
   <div class="head">
     <h3>连接预设</h3>
-    <button type="button" onclick={startAdd}>新建预设</button>
+    <div class="acts-inline">
+      <button type="button" onclick={exportJson}>导出</button>
+      <button type="button" onclick={() => fileEl?.click()}>导入</button>
+      <button type="button" class="new" onclick={startAdd}>新建预设</button>
+    </div>
+    <input
+      bind:this={fileEl}
+      type="file"
+      accept="application/json,.json"
+      hidden
+      onchange={onImportFile}
+    />
   </div>
   <input class="search" type="search" placeholder="按名称或 Base URL 筛选" bind:value={q} />
+  {#if canDrag}
+    <p class="tip">拖拽条目可调整顺序</p>
+  {:else}
+    <p class="tip">筛选时不可排序，清空搜索后拖拽</p>
+  {/if}
   {#if err}<p class="err">{err}</p>{/if}
   {#if filtered.length === 0}
     <p class="empty">没有符合条件的预设</p>
   {:else}
     <ul>
       {#each visible as p (p.id)}
-        <li class:active={isActive(p)}>
+        <li
+          class:active={isActive(p)}
+          class:dragging={dragId === p.id}
+          draggable={canDrag}
+          ondragstart={() => onDragStart(p.id)}
+          ondragover={(e) => e.preventDefault()}
+          ondrop={() => void onDrop(p.id)}
+        >
+          <span class="grip" aria-hidden="true">⋮⋮</span>
           <div class="meta">
             <strong>{p.name}{#if isActive(p)} <em>当前</em>{/if}</strong>
             <span>{host(p.baseUrl)}</span>
@@ -197,6 +308,11 @@
     font-size: 18px;
     font-weight: 600;
   }
+  .acts-inline {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+  }
   .head button,
   .acts button,
   li button,
@@ -208,8 +324,13 @@
     padding: 4px 0;
     color: var(--ink);
   }
-  .head button {
+  .head .new {
     border-bottom: 2px solid var(--amber);
+  }
+  .tip {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: var(--muted);
   }
   .search {
     width: 100%;
@@ -228,11 +349,25 @@
   }
   li {
     display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    gap: 12px;
+    grid-template-columns: auto 1fr auto auto auto;
+    gap: 10px;
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+  li.dragging {
+    opacity: 0.45;
+  }
+  .grip {
+    color: color-mix(in srgb, var(--ink) 35%, transparent);
+    font-size: 12px;
+    letter-spacing: -2px;
+    cursor: grab;
+    user-select: none;
+  }
+  li:not([draggable="true"]) .grip {
+    opacity: 0.25;
+    cursor: default;
   }
   li.active strong {
     color: var(--pine);
