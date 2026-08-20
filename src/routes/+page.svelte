@@ -3,6 +3,7 @@
   import ApiConfig from "$lib/pages/ApiConfig.svelte";
   import Plugins from "$lib/pages/Plugins.svelte";
   import OtherSettings from "$lib/pages/OtherSettings.svelte";
+  import JsonEditor from "$lib/pages/JsonEditor.svelte";
   import {
     detectSettingsPath,
     loadSettings,
@@ -14,7 +15,7 @@
   import { getVersion } from "@tauri-apps/api/app";
   import type { Settings } from "$lib/types";
 
-  type Page = "api" | "plugins" | "other";
+  type Page = "api" | "plugins" | "other" | "json";
 
   let page = $state<Page>("api");
   let path = $state<string | null>(null);
@@ -27,8 +28,10 @@
   let version = $state("");
   let updateHint = $state("");
   let updating = $state(false);
+  let jsonDirty = $state(false);
 
   const dirty = $derived(!!settings && JSON.stringify(settings) !== snapshot);
+  const leavingDirty = $derived(page === "json" ? jsonDirty : dirty);
 
   async function openPath(p: string) {
     error = "";
@@ -83,8 +86,19 @@
   }
 
   async function switchFile(p: string) {
-    if (dirty && !confirm("有未保存修改，切换文件将丢弃。继续？")) return;
+    if (leavingDirty && !confirm("有未保存修改，切换文件将丢弃。继续？")) return;
     await openPath(p);
+  }
+
+  function go(next: Page) {
+    if (next === page) return;
+    if (leavingDirty && !confirm("有未保存修改，切换页面将丢弃。继续？")) return;
+    if (page !== "json" && dirty && snapshot) {
+      settings = JSON.parse(snapshot) as Settings;
+    }
+    if (page === "json") jsonDirty = false;
+    notice = "";
+    page = next;
   }
 
   function reset() {
@@ -108,6 +122,13 @@
     }
   }
 
+  function onJsonSaved(s: Settings) {
+    settings = s;
+    snapshot = JSON.stringify(s);
+    jsonDirty = false;
+    notice = "已保存（原文件备份为 .bak）";
+  }
+
   boot();
 </script>
 
@@ -116,9 +137,10 @@
 
   <div class="body">
     <nav>
-      <button class:on={page === "api"} onclick={() => (page = "api")}>API 配置</button>
-      <button class:on={page === "plugins"} onclick={() => (page = "plugins")}>插件管理</button>
-      <button class:on={page === "other"} onclick={() => (page = "other")}>其他设置</button>
+      <button class:on={page === "api"} onclick={() => go("api")}>API 配置</button>
+      <button class:on={page === "plugins"} onclick={() => go("plugins")}>插件管理</button>
+      <button class:on={page === "other"} onclick={() => go("other")}>其他设置</button>
+      <button class:on={page === "json"} onclick={() => go("json")}>JSON 编辑</button>
       <div class="nav-foot">
         {#if version}<p>v{version}</p>{/if}
         <button type="button" disabled={updating} onclick={onCheckUpdate}>检查更新</button>
@@ -143,15 +165,19 @@
             <ApiConfig bind:settings />
           {:else if page === "plugins"}
             <Plugins bind:settings />
-          {:else}
+          {:else if page === "other"}
             <OtherSettings bind:settings />
+          {:else if path}
+            <JsonEditor {path} onsaved={onJsonSaved} ondirty={(d) => (jsonDirty = d)} />
           {/if}
         </div>
-        <footer>
-          {#if notice}<span class="ok">{notice}</span>{/if}
-          <button type="button" disabled={!dirty || busy} onclick={reset}>重置</button>
-          <button class="save" type="button" disabled={!dirty || busy} onclick={save}>保存</button>
-        </footer>
+        {#if page !== "json"}
+          <footer>
+            {#if notice}<span class="ok">{notice}</span>{/if}
+            <button type="button" disabled={!dirty || busy} onclick={reset}>重置</button>
+            <button class="save" type="button" disabled={!dirty || busy} onclick={save}>保存</button>
+          </footer>
+        {/if}
       {/if}
     </main>
   </div>
@@ -217,6 +243,9 @@
   }
   .pane {
     flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     animation: in 180ms ease;
   }
   footer {

@@ -9,8 +9,20 @@ export function loadSettings(path: string) {
   return invoke<Settings>("load_settings", { path });
 }
 
+export function loadSettingsRaw(path: string) {
+  return invoke<string>("load_settings_raw", { path });
+}
+
+export function validateSettingsJson(content: string) {
+  return invoke<void>("validate_settings_json", { content });
+}
+
 export function saveSettings(path: string, settings: Settings) {
   return invoke<void>("save_settings", { path, settings });
+}
+
+export function saveSettingsRaw(path: string, content: string) {
+  return invoke<Settings>("save_settings_raw", { path, content });
 }
 
 export function pickSettingsFile() {
