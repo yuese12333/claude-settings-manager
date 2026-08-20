@@ -5,6 +5,7 @@
     validateSettingsJson,
   } from "$lib/api";
   import { highlightJson } from "$lib/jsonHighlight";
+  import { canFixJsonStructure, fixJsonStructure } from "$lib/jsonStructureFix";
   import type { Settings } from "$lib/types";
 
   let {
@@ -38,10 +39,23 @@
   const lineCount = $derived(Math.max(1, text.split("\n").length));
   const lineNos = $derived(Array.from({ length: lineCount }, (_, i) => i + 1));
   const html = $derived(highlightJson(text) + "\n");
+  const showFix = $derived(canFixJsonStructure(text));
 
   $effect(() => {
     ondirty(dirty);
   });
+
+  function applyStructureFix() {
+    const { fixed, changed, notes } = fixJsonStructure(text);
+    if (!changed) {
+      notice = "没有可自动修复的结构问题";
+      return;
+    }
+    text = fixed.endsWith("\n") ? fixed : `${fixed}\n`;
+    notice = `已尝试修复：${notes.join("；") || "结构调整"}`;
+    void check(text);
+    syncScroll();
+  }
 
   function syncScroll() {
     if (!preEl || !taEl) return;
@@ -214,6 +228,9 @@
     {#if errLine}
       <button type="button" class="jump" onclick={() => goToLine(errLine!)}>定位到第 {errLine} 行</button>
     {/if}
+    {#if showFix}
+      <button type="button" class="fix" onclick={applyStructureFix}>一键修复结构</button>
+    {/if}
   </div>
 
   {#if findOpen}
@@ -302,6 +319,10 @@
   .jump {
     color: #9b2c1a;
     border-bottom-color: color-mix(in srgb, #9b2c1a 50%, transparent);
+  }
+  .fix {
+    color: var(--pine);
+    border-bottom-color: color-mix(in srgb, var(--pine) 55%, transparent);
   }
   .find {
     display: flex;
