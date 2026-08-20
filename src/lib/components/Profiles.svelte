@@ -4,7 +4,7 @@
   import type { Profile } from "$lib/types";
 
   const DEFAULT_ID = "default";
-  const DEFAULT_NAME = "默认配置组";
+  const DEFAULT_NAME = "默认连接";
   const PREVIEW = 3;
 
   let {
@@ -93,10 +93,10 @@
 
   async function remove(p: Profile) {
     if (profiles.length <= 1) {
-      err = "至少保留一个配置组";
+      err = "须至少保留一个配置组";
       return;
     }
-    if (!confirm(`删除配置组「${p.name}」？`)) return;
+    if (!confirm(`确定删除配置组「${p.name}」？此操作不可撤销。`)) return;
     try {
       await persist(profiles.filter((x) => x.id !== p.id));
     } catch (e) {
@@ -129,30 +129,30 @@
 
 <div class="box">
   <div class="head">
-    <h3>配置组</h3>
-    <button type="button" onclick={startAdd}>+ 新建</button>
+    <h3>连接预设</h3>
+    <button type="button" onclick={startAdd}>新建预设</button>
   </div>
-  <input class="search" type="search" placeholder="查找名称或 Base URL" bind:value={q} />
+  <input class="search" type="search" placeholder="按名称或 Base URL 筛选" bind:value={q} />
   {#if err}<p class="err">{err}</p>{/if}
   {#if filtered.length === 0}
-    <p class="empty">没有匹配的配置组</p>
+    <p class="empty">没有符合条件的预设</p>
   {:else}
     <ul>
       {#each visible as p (p.id)}
         <li class:active={isActive(p)}>
           <div class="meta">
-            <strong>{p.name}{#if isActive(p)} <em>使用中</em>{/if}</strong>
+            <strong>{p.name}{#if isActive(p)} <em>当前</em>{/if}</strong>
             <span>{host(p.baseUrl)}</span>
           </div>
-          <button type="button" class="use" disabled={isActive(p)} onclick={() => onapply(p)}>套用</button>
-          <button type="button" onclick={() => startEdit(p)}>修改</button>
+          <button type="button" class="use" disabled={isActive(p)} onclick={() => onapply(p)}>应用</button>
+          <button type="button" onclick={() => startEdit(p)}>编辑</button>
           <button type="button" class="del" disabled={profiles.length <= 1} onclick={() => remove(p)}>删除</button>
         </li>
       {/each}
     </ul>
     {#if filtered.length > PREVIEW}
       <button type="button" class="more" onclick={() => (expanded = !expanded)}>
-        {expanded ? "收起" : "显示全部"}
+        {expanded ? "收起列表" : "展开全部"}
       </button>
     {/if}
   {/if}
@@ -167,16 +167,16 @@
       void commit();
     }}
   >
-    <h3>{editing ? "修改配置组" : "新建配置组"}</h3>
+    <h3>{editing ? "编辑连接预设" : "新建连接预设"}</h3>
     <label for="pname">名称</label>
-    <input id="pname" placeholder="例如 官方 / 中转" bind:value={name} />
+    <input id="pname" placeholder="例如：官方接口、自建中转" bind:value={name} />
     <label for="purl">Base URL</label>
     <input id="purl" type="url" placeholder="https://api.anthropic.com" bind:value={baseUrl} />
     <label for="pkey">API Key</label>
     <ApiKeyInput id="pkey" value={apiKey} onchange={(v) => (apiKey = v)} />
     <div class="acts">
       <button type="button" onclick={() => (open = false)}>取消</button>
-      <button type="submit">保存</button>
+      <button type="submit">保存预设</button>
     </div>
   </form>
 {/if}

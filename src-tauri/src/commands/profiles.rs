@@ -18,10 +18,10 @@ fn validate(profiles: &[Profile]) -> Result<(), String> {
     let mut names = std::collections::HashSet::new();
     for p in profiles {
         if p.id.trim().is_empty() || p.name.trim().is_empty() {
-            return Err("配置组名称不能为空".into());
+            return Err("预设名称不能为空".into());
         }
         if !names.insert(p.name.trim().to_lowercase()) {
-            return Err(format!("配置组名称重复: {}", p.name.trim()));
+            return Err(format!("预设名称已存在：{}", p.name.trim()));
         }
     }
     Ok(())
@@ -33,8 +33,8 @@ pub fn load_profiles(app: AppHandle) -> Result<Vec<Profile>, String> {
     if !path.is_file() {
         return Ok(vec![]);
     }
-    let raw = fs::read_to_string(&path).map_err(|e| format!("读取配置组失败: {e}"))?;
-    serde_json::from_str(raw.trim_start_matches('\u{feff}')).map_err(|e| format!("配置组损坏: {e}"))
+    let raw = fs::read_to_string(&path).map_err(|e| format!("无法读取连接预设：{e}"))?;
+    serde_json::from_str(raw.trim_start_matches('\u{feff}')).map_err(|e| format!("连接预设文件已损坏：{e}"))
 }
 
 #[tauri::command]

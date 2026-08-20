@@ -21,7 +21,7 @@
     <span class="mark">CC</span>
     <div>
       <h1>Claude Code Settings</h1>
-      <p>离线编辑 settings.json</p>
+      <p>本地管理 Claude Code 配置</p>
     </div>
   </div>
 
@@ -32,8 +32,8 @@
         <button class="tab" type="button" onclick={() => onswitch(sibling)}>{nameOf(sibling)}</button>
       </div>
     {/if}
-    <p class="path" title={path ?? ""}>{path ?? "未找到配置文件"}</p>
-    <button class="ghost" type="button" onclick={onpick}>更换文件</button>
+    <p class="path" title={path ?? ""}>{path ?? "尚未定位到配置文件"}</p>
+    <button class="ghost" type="button" onclick={onpick}>选择文件</button>
   </div>
 </header>
 

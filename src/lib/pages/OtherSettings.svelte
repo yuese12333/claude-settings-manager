@@ -21,24 +21,24 @@
 </script>
 
 <section>
-  <h2>其他设置</h2>
-  <p class="lead">主题和遥测开关，对应 theme 与 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC。</p>
+  <h2>偏好</h2>
+  <p class="lead">调整 Claude Code 外观主题，以及非必要网络请求（遥测）相关选项。</p>
 
   <fieldset>
-    <legend>Theme</legend>
+    <legend>外观主题</legend>
     <label>
       <input type="radio" name="theme" checked={settings.theme === "light"} onchange={() => setTheme("light")} />
-      light
+      浅色
     </label>
     <label>
       <input type="radio" name="theme" checked={settings.theme === "dark"} onchange={() => setTheme("dark")} />
-      dark
+      深色
     </label>
   </fieldset>
 
   <label class="tog">
     <input type="checkbox" checked={telemetryOff} onchange={(e) => setTelemetry(e.currentTarget.checked)} />
-    禁止遥测
+    禁用非必要流量
   </label>
 </section>
 

@@ -18,9 +18,9 @@
   <span class="id">{id}</span>
   <span class="src">{source}</span>
   <button class="tog" class:on={enabled} type="button" onclick={ontoggle}>
-    {enabled ? "启用" : "禁用"}
+    {enabled ? "已启用" : "已停用"}
   </button>
-  <button class="del" type="button" onclick={onremove}>删除</button>
+  <button class="del" type="button" onclick={onremove}>移除</button>
 </li>
 
 <style>

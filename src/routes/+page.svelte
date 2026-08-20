@@ -55,11 +55,11 @@
   async function onCheckUpdate() {
     if (updating) return;
     updating = true;
-    updateHint = "正在检查…";
+    updateHint = "正在检查更新…";
     try {
       updateHint = await checkAppUpdate((msg) => (updateHint = msg));
     } catch {
-      updateHint = "暂时无法检查更新";
+      updateHint = "更新检查失败，请稍后重试";
     } finally {
       updating = false;
     }
@@ -86,13 +86,13 @@
   }
 
   async function switchFile(p: string) {
-    if (leavingDirty && !confirm("有未保存修改，切换文件将丢弃。继续？")) return;
+    if (leavingDirty && !confirm("当前更改尚未保存，切换文件将放弃这些更改。是否继续？")) return;
     await openPath(p);
   }
 
   function go(next: Page) {
     if (next === page) return;
-    if (leavingDirty && !confirm("有未保存修改，切换页面将丢弃。继续？")) return;
+    if (leavingDirty && !confirm("当前更改尚未保存，离开本页将放弃这些更改。是否继续？")) return;
     if (page !== "json" && dirty && snapshot) {
       settings = JSON.parse(snapshot) as Settings;
     }
@@ -114,7 +114,7 @@
     try {
       await saveSettings(path, settings);
       snapshot = JSON.stringify(settings);
-      notice = "已保存（原文件备份为 .bak）";
+      notice = "已写入磁盘，原文件已备份为 .bak";
     } catch (e) {
       error = String(e);
     } finally {
@@ -126,7 +126,7 @@
     settings = s;
     snapshot = JSON.stringify(s);
     jsonDirty = false;
-    notice = "已保存（原文件备份为 .bak）";
+    notice = "已写入磁盘，原文件已备份为 .bak";
   }
 
   boot();
@@ -137,10 +137,10 @@
 
   <div class="body">
     <nav>
-      <button class:on={page === "api"} onclick={() => go("api")}>API 配置</button>
-      <button class:on={page === "plugins"} onclick={() => go("plugins")}>插件管理</button>
-      <button class:on={page === "other"} onclick={() => go("other")}>其他设置</button>
-      <button class:on={page === "json"} onclick={() => go("json")}>JSON 编辑</button>
+      <button class:on={page === "api"} onclick={() => go("api")}>接口配置</button>
+      <button class:on={page === "plugins"} onclick={() => go("plugins")}>插件</button>
+      <button class:on={page === "other"} onclick={() => go("other")}>偏好</button>
+      <button class:on={page === "json"} onclick={() => go("json")}>源文件</button>
       <div class="nav-foot">
         {#if version}<p>v{version}</p>{/if}
         <button type="button" disabled={updating} onclick={onCheckUpdate}>检查更新</button>
@@ -155,9 +155,9 @@
 
       {#if !settings}
         <div class="empty">
-          <h2>没有打开配置文件</h2>
-          <p>启动时会探测 %APPDATA%\Claude 和 %USERPROFILE%\.claude。找不到就手动选。</p>
-          <button type="button" onclick={pick}>选择 settings.json</button>
+          <h2>未加载配置</h2>
+          <p>将按顺序探测常见 Claude Code 路径；若均不存在，请手动指定 settings.json。</p>
+          <button type="button" onclick={pick}>浏览文件…</button>
         </div>
       {:else}
         <div class="pane">
@@ -174,8 +174,8 @@
         {#if page !== "json"}
           <footer>
             {#if notice}<span class="ok">{notice}</span>{/if}
-            <button type="button" disabled={!dirty || busy} onclick={reset}>重置</button>
-            <button class="save" type="button" disabled={!dirty || busy} onclick={save}>保存</button>
+            <button type="button" disabled={!dirty || busy} onclick={reset}>还原</button>
+            <button class="save" type="button" disabled={!dirty || busy} onclick={save}>保存更改</button>
           </footer>
         {/if}
       {/if}

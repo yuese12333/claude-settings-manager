@@ -50,13 +50,13 @@
 </script>
 
 <section>
-  <h2>插件管理</h2>
-  <p class="lead">启用、停用或从配置里删掉插件条目。</p>
+  <h2>插件</h2>
+  <p class="lead">管理 enabledPlugins 中的条目：启用、停用或从配置中移除。</p>
 
-  <button class="add" type="button" onclick={() => (open = true)}>+ 添加插件</button>
+  <button class="add" type="button" onclick={() => (open = true)}>添加插件</button>
 
   {#if rows.length === 0}
-    <p class="empty">还没有插件条目。</p>
+    <p class="empty">当前配置中尚无插件条目。</p>
   {:else}
     <ul>
       {#each rows as row (row.id)}
@@ -75,16 +75,16 @@
 {#if open}
   <div class="mask" onclick={() => (open = false)} role="presentation"></div>
   <form class="dlg" onsubmit={(e) => { e.preventDefault(); add(); }}>
-    <h3>添加插件</h3>
+    <h3>注册插件</h3>
     <label for="pid">插件 ID</label>
     <input id="pid" placeholder="caveman@caveman" bind:value={pluginId} />
     <label for="mid">Marketplace</label>
     <input id="mid" placeholder="caveman" bind:value={marketplace} />
-    <label for="repo">GitHub Repo</label>
+    <label for="repo">GitHub 仓库</label>
     <input id="repo" placeholder="JuliusBrussee/caveman" bind:value={repo} />
     <div class="acts">
       <button type="button" onclick={() => (open = false)}>取消</button>
-      <button type="submit">添加</button>
+      <button type="submit">确认添加</button>
     </div>
   </form>
 {/if}

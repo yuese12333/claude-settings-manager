@@ -7,8 +7,8 @@ export async function checkAppUpdate(onProgress: (msg: string) => void): Promise
   if (!update) return "已是最新版本";
 
   const notes = update.body?.trim() ? `\n\n${update.body.trim()}` : "";
-  if (!confirm(`发现新版本 ${update.version}，下载并安装？${notes}`)) {
-    return `有新版本 ${update.version}`;
+  if (!confirm(`发现新版本 ${update.version}。是否立即下载并安装？${notes}`)) {
+    return `发现可用更新 ${update.version}（已跳过）`;
   }
 
   let downloaded = 0;
@@ -17,10 +17,10 @@ export async function checkAppUpdate(onProgress: (msg: string) => void): Promise
     if (event.event === "Started") total = event.data.contentLength ?? 0;
     if (event.event === "Progress") {
       downloaded += event.data.chunkLength;
-      onProgress(total ? `下载中 ${Math.round((downloaded / total) * 100)}%` : "下载中…");
+      onProgress(total ? `正在下载 ${Math.round((downloaded / total) * 100)}%` : "正在下载…");
     }
   });
-  onProgress("正在重启…");
+  onProgress("安装完成，即将重启…");
   await relaunch();
-  return "更新完成";
+  return "更新已完成";
 }

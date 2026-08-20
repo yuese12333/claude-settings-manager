@@ -19,7 +19,7 @@
 
   let text = $state("");
   let snapshot = $state("");
-  let validMsg = $state("检查中…");
+  let validMsg = $state("正在校验…");
   let ok = $state(false);
   let busy = $state(false);
   let notice = $state("");
@@ -39,7 +39,7 @@
     try {
       await validateSettingsJson(content);
       ok = true;
-      validMsg = "内容合法";
+      validMsg = "结构校验通过";
     } catch (e) {
       ok = false;
       validMsg = String(e);
@@ -60,7 +60,7 @@
       const settings = await saveSettingsRaw(path, text);
       snapshot = text.endsWith("\n") ? text : `${text}\n`;
       text = snapshot;
-      notice = "已保存（原文件备份为 .bak）";
+      notice = "已写入磁盘，原文件已备份为 .bak";
       onsaved(settings);
     } catch (e) {
       error = String(e);
@@ -98,8 +98,8 @@
 </script>
 
 <section>
-  <h2>settings.json</h2>
-  <p class="lead">直接编辑原始文件。仅在内容合法时才能保存。</p>
+  <h2>源文件</h2>
+  <p class="lead">以 JSON 原文编辑 settings.json。通过结构校验后方可保存。</p>
 
   <div class="status" class:bad={!ok} class:good={ok}>
     {validMsg}
@@ -128,8 +128,8 @@
 
   <footer>
     {#if notice}<span class="ok">{notice}</span>{/if}
-    <button type="button" disabled={!dirty || busy} onclick={reset}>重置</button>
-    <button class="save" type="button" disabled={!dirty || !ok || busy} onclick={save}>保存</button>
+    <button type="button" disabled={!dirty || busy} onclick={reset}>还原</button>
+    <button class="save" type="button" disabled={!dirty || !ok || busy} onclick={save}>保存更改</button>
   </footer>
 </section>
 
@@ -235,14 +235,93 @@
     color: transparent;
   }
 
-  /* token palette */
-  .hl :global(.t-key) {
+  /* semantic palette: url / secret / model / plugin / … */
+  .hl :global(.t-k-url),
+  .hl :global(.t-v-url) {
+    color: #0f5c8a;
+  }
+  .hl :global(.t-k-url) {
+    font-weight: 700;
+  }
+  .hl :global(.t-v-url) {
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, #0f5c8a 40%, transparent);
+    text-underline-offset: 2px;
+  }
+
+  .hl :global(.t-k-secret),
+  .hl :global(.t-v-secret) {
+    color: #8a2f45;
+  }
+  .hl :global(.t-k-secret) {
+    font-weight: 700;
+  }
+  .hl :global(.t-v-secret) {
+    background: color-mix(in srgb, #8a2f45 9%, transparent);
+  }
+
+  .hl :global(.t-k-model),
+  .hl :global(.t-v-model) {
+    color: #9a5b12;
+  }
+  .hl :global(.t-k-model) {
+    font-weight: 700;
+  }
+
+  .hl :global(.t-k-timeout),
+  .hl :global(.t-v-timeout) {
+    color: #6a4a18;
+  }
+  .hl :global(.t-k-timeout) {
+    font-weight: 700;
+  }
+
+  .hl :global(.t-k-plugin),
+  .hl :global(.t-v-plugin) {
+    color: #3a5a28;
+  }
+  .hl :global(.t-k-plugin) {
+    font-weight: 700;
+  }
+  .hl :global(.t-v-plugin) {
+    font-style: italic;
+  }
+
+  .hl :global(.t-k-theme),
+  .hl :global(.t-v-theme) {
+    color: #5a3d6e;
+  }
+  .hl :global(.t-k-theme) {
+    font-weight: 700;
+  }
+
+  .hl :global(.t-k-env),
+  .hl :global(.t-v-env),
+  .hl :global(.t-k-flag),
+  .hl :global(.t-v-flag) {
+    color: #1a4a40;
+  }
+  .hl :global(.t-k-env),
+  .hl :global(.t-k-flag) {
+    font-weight: 600;
+  }
+
+  .hl :global(.t-k-meta),
+  .hl :global(.t-v-meta) {
+    color: #4a5a62;
+  }
+  .hl :global(.t-k-meta) {
+    font-weight: 600;
+  }
+
+  .hl :global(.t-k-plain) {
     color: #1a4a40;
     font-weight: 600;
   }
-  .hl :global(.t-str) {
+  .hl :global(.t-v-plain) {
     color: #6b5a32;
   }
+
   .hl :global(.t-num) {
     color: #b56a1a;
   }

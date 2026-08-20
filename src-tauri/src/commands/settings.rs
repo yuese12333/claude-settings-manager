@@ -9,11 +9,11 @@ use tauri::AppHandle;
 fn validate_content(content: &str) -> Result<Settings, String> {
     let raw = content.trim_start_matches('\u{feff}');
     let value: Value =
-        serde_json::from_str(raw).map_err(|e| format!("JSON 语法错误: {e}"))?;
+        serde_json::from_str(raw).map_err(|e| format!("JSON 语法无效：{e}"))?;
     if !value.is_object() {
-        return Err("根节点必须是 JSON 对象".into());
+        return Err("根节点须为 JSON 对象".into());
     }
-    serde_json::from_value(value).map_err(|e| format!("不符合 settings.json 结构: {e}"))
+    serde_json::from_value(value).map_err(|e| format!("不符合 Claude Code settings 结构：{e}"))
 }
 
 #[tauri::command]

@@ -5,11 +5,11 @@ use tauri_plugin_dialog::DialogExt;
 
 pub fn validate_settings_path(path: &Path) -> Result<(), String> {
     if !path.is_absolute() {
-        return Err("路径必须是绝对路径".into());
+        return Err("请使用绝对路径".into());
     }
     let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
     if name != "settings.json" && name != "settings.local.json" {
-        return Err("文件名必须是 settings.json 或 settings.local.json".into());
+        return Err("仅支持 settings.json 或 settings.local.json".into());
     }
     Ok(())
 }
@@ -70,7 +70,7 @@ pub fn pick_settings_file(app: AppHandle) -> Result<Option<String>, String> {
         .dialog()
         .file()
         .add_filter("Claude settings", &["json"])
-        .set_title("选择 settings.json")
+        .set_title("选择 Claude Code 配置文件")
         .blocking_pick_file();
 
     let Some(file) = picked else {

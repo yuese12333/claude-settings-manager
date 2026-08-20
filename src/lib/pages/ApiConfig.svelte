@@ -39,8 +39,8 @@
 </script>
 
 <section>
-  <h2>API 配置</h2>
-  <p class="lead">上方改当前值；下方配置组可一键套用。套用后记得保存。</p>
+  <h2>接口配置</h2>
+  <p class="lead">编辑当前连接参数，或从下方配置组一键应用预设。应用后需保存才会写入磁盘。</p>
 
   <label for="base-url">Base URL</label>
   <input
@@ -66,16 +66,16 @@
         setKey("ANTHROPIC_MODEL", v);
       }
     }}>
-      <option value="">选择模型</option>
+      <option value="">选择模型…</option>
       {#each MODELS as m}
         <option value={m}>{m}</option>
       {/each}
-      <option value="custom">自定义</option>
+      <option value="custom">自定义型号</option>
     </select>
     {#if modelChoice() === "custom"}
       <input
         type="text"
-        placeholder="自定义模型名"
+        placeholder="输入模型标识符"
         value={get("ANTHROPIC_MODEL")}
         oninput={(e) => setKey("ANTHROPIC_MODEL", e.currentTarget.value)}
       />
